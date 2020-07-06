@@ -2,6 +2,8 @@ PREFIX ?= /usr
 DESTDIR ?=
 BINDIR ?= $(PREFIX)/bin
 export GO111MODULE := on
+export GOPROXY := go-proxy.oss.wandera.net
+export GONOSUMDB := github.com/wandera/*
 
 all: generate-version-and-build
 

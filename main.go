@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"syscall"
 
-	"golang.zx2c4.com/wireguard/device"
+	"github.com/vandac/wireguard-go/device"
 	"golang.zx2c4.com/wireguard/ipc"
 	"golang.zx2c4.com/wireguard/tun"
 )
