@@ -89,6 +89,8 @@ type Device struct {
 		device tun.Device
 		mtu    int32
 	}
+
+	reservedBytes ReservedBytes
 }
 
 /* Converts the peer into a "zombie", which remains in the peer map,
@@ -232,6 +234,7 @@ func (device *Device) SetPrivateKey(sk NoisePrivateKey) error {
 
 	device.staticIdentity.privateKey = sk
 	device.staticIdentity.publicKey = publicKey
+
 	device.cookieChecker.Init(publicKey)
 
 	// do static-static DH pre-computations
@@ -255,6 +258,8 @@ func (device *Device) SetPrivateKey(sk NoisePrivateKey) error {
 
 func NewDevice(tunDevice tun.Device, logger *Logger) *Device {
 	device := new(Device)
+	device.reservedBytes = NewReservedBytes()
+	logger.Debug.Printf("sessionId:%X", device.reservedBytes)
 
 	device.isUp.Set(false)
 	device.isClosed.Set(false)
