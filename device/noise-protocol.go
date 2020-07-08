@@ -8,6 +8,7 @@ package device
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -76,6 +77,10 @@ const (
 	MessageTransportOffsetContent  = 16
 )
 
+type ReservedBytes struct {
+	internalArray [3]byte
+}
+
 /* Type is an 8-bit field, followed by 3 nul bytes,
  * by marshalling the messages in little-endian byteorder
  * we can treat these as a 32-bit unsigned int (for now)
@@ -83,7 +88,8 @@ const (
  */
 
 type MessageInitiation struct {
-	Type      uint32
+	Type      uint8
+	SessionId ReservedBytes
 	Sender    uint32
 	Ephemeral NoisePublicKey
 	Static    [NoisePublicKeySize + poly1305.TagSize]byte
@@ -168,6 +174,18 @@ func (h *Handshake) mixKey(data []byte) {
 	mixKey(&h.chainKey, &h.chainKey, data)
 }
 
+func NewReservedBytes() ReservedBytes {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	sessionId := rand.Uint32()
+	var a [3]byte
+	a[0] = byte(sessionId)
+	a[1] = byte(sessionId >> 8)
+	a[2] = byte(sessionId >> 16)
+
+	reservedBytes := ReservedBytes{internalArray: a}
+	return reservedBytes
+}
+
 /* Do basic precomputations
  */
 func init() {
@@ -177,6 +195,8 @@ func init() {
 
 func (device *Device) CreateMessageInitiation(peer *Peer) (*MessageInitiation, error) {
 	var errZeroECDHResult = errors.New("ECDH returned all zeros")
+
+	logDebug := device.log.Debug
 
 	device.staticIdentity.RLock()
 	defer device.staticIdentity.RUnlock()
@@ -196,10 +216,15 @@ func (device *Device) CreateMessageInitiation(peer *Peer) (*MessageInitiation, e
 
 	handshake.mixHash(handshake.remoteStatic[:])
 
+	logDebug.Println("before message initiation creation:reservedBytes:",device.reservedBytes)
+
 	msg := MessageInitiation{
 		Type:      MessageInitiationType,
+		SessionId: device.reservedBytes,
 		Ephemeral: handshake.localEphemeral.publicKey(),
 	}
+
+	logDebug.Println("msg:sessionId:",msg.SessionId)
 
 	handshake.mixKey(msg.Ephemeral[:])
 	handshake.mixHash(msg.Ephemeral[:])

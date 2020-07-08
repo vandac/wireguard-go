@@ -115,6 +115,7 @@ func (peer *Peer) SendKeepalive() bool {
 	select {
 	case peer.queue.nonce <- elem:
 		peer.device.log.Debug.Println(peer, "- Sending keepalive packet")
+		peer.device.log.Debug.Println(peer, "- Sending keepalive packet2")
 		return true
 	default:
 		peer.device.PutMessageBuffer(elem.buffer)
@@ -144,6 +145,7 @@ func (peer *Peer) SendHandshakeInitiation(isRetry bool) error {
 	peer.handshake.mutex.Unlock()
 
 	peer.device.log.Debug.Println(peer, "- Sending handshake initiation")
+	peer.device.log.Debug.Println(peer, "- Version: local")
 
 	msg, err := peer.device.CreateMessageInitiation(peer)
 	if err != nil {
@@ -519,13 +521,26 @@ func (device *Device) RoutineEncryption() {
 
 			header := elem.buffer[:MessageTransportHeaderSize]
 
-			fieldType := header[0:4]
+			fieldType := header[0:1]
+			reservedBytes := header[1:4]
 			fieldReceiver := header[4:8]
 			fieldNonce := header[8:16]
 
-			binary.LittleEndian.PutUint32(fieldType, MessageTransportType)
+			//fieldType = MessageTransportType
+			logDebug.Printf("Message Transport Type. sessionId=%d", device.reservedBytes)
+
+			reservedBytes[0] = device.reservedBytes.internalArray[0]
+			reservedBytes[1] = device.reservedBytes.internalArray[1]
+			reservedBytes[2] = device.reservedBytes.internalArray[2]
+
+			logDebug.Printf("After inserting into reservedBytes")
+
+			//binary.LittleEndian.PutUint32(fieldType, MessageTransportType)
+			fieldType[0] = MessageTransportType
 			binary.LittleEndian.PutUint32(fieldReceiver, elem.keypair.remoteIndex)
 			binary.LittleEndian.PutUint64(fieldNonce, elem.nonce)
+
+			logDebug.Printf("fieldType: %X %X %X %X", fieldType, reservedBytes[0], reservedBytes[1], reservedBytes[2])
 
 			// pad content to multiple of 16
 
